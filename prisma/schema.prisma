@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("MAHASISWA")
+  avatar    String?
+  bio       String?
+  prodi     String?
+  institusi String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedResources   SavedResource[]
+  citations        Citation[]
+  consultations    Consultation[]   @relation("MahasiswaConsultations")
+  consultAsExpert  Consultation[]   @relation("PakarConsultations")
+  enrollments      TrainingEnroll[]
+  researchSessions ResearchSession[]
+  researchAsMentor ResearchSession[] @relation("MentorSessions")
+  subscription     Subscription?
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  plan      String    @default("FREE")
+  status    String    @default("ACTIVE")
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  amount    Float     @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Resource {
+  id           String   @id @default(cuid())
+  title        String
+  authors      String
+  abstract     String
+  type         String
+  category     String
+  subject      String?
+  publisher    String?
+  year         Int?
+  doi          String?
+  isbn         String?
+  fileUrl      String?
+  coverUrl     String?
+  language     String   @default("Indonesia")
+  isOpenAccess Boolean  @default(true)
+  isPremium    Boolean  @default(false)
+  downloadCount Int     @default(0)
+  viewCount    Int      @default(0)
+  tags         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  saved        SavedResource[]
+  citations    Citation[]
+}
+
+model SavedResource {
+  id         String   @id @default(cuid())
+  userId     String
+  resourceId String
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, resourceId])
+}
+
+model Citation {
+  id          String   @id @default(cuid())
+  userId      String
+  resourceId  String?
+  title       String
+  authors     String
+  year        Int?
+  publisher   String?
+  doi         String?
+  style       String   @default("APA")
+  formatted   String?
+  notes       String?
+  projectName String?
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resource    Resource? @relation(fields: [resourceId], references: [id])
+}
+
+model Consultation {
+  id          String   @id @default(cuid())
+  mahasiswaId String
+  pakarId     String
+  topic       String
+  description String
+  channel     String   @default("CHAT")
+  status      String   @default("OPEN")
+  scheduledAt DateTime?
+  resolvedAt  DateTime?
+  meetLink    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mahasiswa   User          @relation("MahasiswaConsultations", fields: [mahasiswaId], references: [id])
+  pakar       User          @relation("PakarConsultations", fields: [pakarId], references: [id])
+  messages    ConsultMessage[]
+  chatMessages ChatMessage[]
+}
+
+model ConsultMessage {
+  id             String   @id @default(cuid())
+  consultationId String
+  senderId       String
+  content        String
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  consultation   Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id             String   @id @default(cuid())
+  consultationId String
+  senderId       String
+  senderName     String
+  senderRole     String   @default("MAHASISWA")
+  content        String
+  createdAt      DateTime @default(now())
+
+  consultation   Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+}
+
+model Training {
+  id              String   @id @default(cuid())
+  title           String
+  description     String
+  type            String
+  topic           String
+  instructor      String
+  duration        Int?
+  maxParticipants Int?
+  scheduledAt     DateTime?
+  recordingUrl    String?
+  materialUrl     String?
+  isPublished     Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  enrollments     TrainingEnroll[]
+}
+
+model TrainingEnroll {
+  id          String    @id @default(cuid())
+  userId      String
+  trainingId  String
+  status      String    @default("ENROLLED")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  training    Training  @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, trainingId])
+}
+
+model ResearchSession {
+  id          String   @id @default(cuid())
+  mahasiswaId String
+  mentorId    String
+  title       String
+  description String?
+  stage       String   @default("TOPIC_SELECTION")
+  status      String   @default("ACTIVE")
+  startDate   DateTime @default(now())
+  targetDate  DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  mahasiswa   User     @relation(fields: [mahasiswaId], references: [id])
+  mentor      User     @relation("MentorSessions", fields: [mentorId], references: [id])
+  milestones  ResearchMilestone[]
+}
+
+model ResearchMilestone {
+  id        String   @id @default(cuid())
+  sessionId String
+  title     String
+  notes     String?
+  isDone    Boolean  @default(false)
+  dueDate   DateTime?
+  doneAt    DateTime?
+  createdAt DateTime @default(now())
+
+  session   ResearchSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
